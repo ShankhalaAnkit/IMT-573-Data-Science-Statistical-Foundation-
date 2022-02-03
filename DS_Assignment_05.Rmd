@@ -1,0 +1,227 @@
+---
+title: "DS_Assignment_05"
+author: "Ankit"
+date: "14/11/2021"
+output: html_document
+---
+
+## Collaborators: Alwin, Srishti and Sakshi
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 1. Descriptive Analysis
+
+### 1.1
+
+```{r}
+father_son <- read.delim('fatherson.csv.bz2')
+dim(father_son)  #dimensions of the data
+head(father_son)
+
+summary(father_son)  #summary of the data
+
+dim(father_son[complete.cases(father_son),])  #to check the missing values
+```
+
+Total observations are 1078 with 2 columns and there are no missing values. 
+
+### 1.2
+
+Father's descriptive values: 
+```{r}
+
+mean(father_son$fheight)  # Mean of the father
+median(father_son$fheight)    # Median of the father
+sd(father_son$fheight)  # Standard deviation of the father
+range(father_son$fheight) # Range of the father
+```
+
+Son's descriptive values: 
+```{r}
+mean(father_son$sheight) # Mean of the Son
+median(father_son$sheight) # Median of the Son
+sd(father_son$sheight) # Sandard Deviation of the Son
+range(father_son$sheight) # Range of the Son
+```
+
+As we can see, mean and median of son's height is greater than father's mean and median. Hence, son is taller than father. 
+
+### 1.3
+
+Density plot for heights of father and sons
+
+```{r}
+ggplot(father_son)+
+  stat_density(aes(x=fheight), geom = "line", position = "stack",col="red")+
+  stat_density(aes(x=sheight), geom = "line", position = "stack",col="blue") +
+  labs(title="Plot of heights of fathers and sons",
+        x ="Heights")
+```
+
+The graph resembles like a normal distribution, Yes we can agree with the conclusions we gave in the above question, from the above graph is clearly evident that son's height is taller than father's height. 
+
+### 1.4
+
+```{r}
+
+avg_diff <- mean(father_son$sheight) - mean(father_son$fheight) # Difference of average of father's height and Son's height
+avg_diff
+
+```
+
+Son's are taller than the father's by "2.532004" cms. 
+
+## 2. Simulations
+
+H0 <- Fathers and Sons height are same in terms of heights.  
+
+### 2.1
+
+```{r}
+combinedhts <- father_son %>% 
+  cbind(stack(father_son[1:2])) %>% 
+  select(values) %>% rename(heights=values)  
+combinedhts <- as.numeric(unlist(combinedhts))  # creating a list of all the heights father's and son's
+length(combinedhts)
+```
+
+```{r}
+mu = mean(combinedhts)  # mean of the total height 
+sigma <- sd(combinedhts) # Standard Deviation of the total height
+mu
+sigma
+```
+
+Mean of combined heights : ~173.2, Standard Deviation of combined heights : ~7.2
+
+### 2.2
+
+```{r}
+fakefathers <- rnorm(1078, mu, sigma)  # creating random normal sample of fathers with nu mean and sigma sd
+fakesons <- rnorm(1078, mu, sigma)   # creating random normal sample of Sons with nu mean and sigma sd
+diff <- mean(fakefathers) - mean(fakesons) # difference of the mean od the fake random samples of fathers and sons
+diff
+```
+
+Difference between father and sons height is different from the above calculated value because we are taking wrong values. 
+
+### 2.3
+
+```{r}
+# function to create normal samples for fake fathers and fake sons
+
+fakeMean <- function(i) {
+  fakeFather <- rnorm(1078, mu, sigma)
+  fakeSon <- rnorm(1078, mu, sigma)
+  diff<- mean(fakeFather) - mean(fakeSon)  
+}
+means <- sapply(1:1000, fakeMean) # looping the function for the 1000 times. 
+```
+
+### 2.4
+
+```{r}
+mean(means) # mean of the differece of the fake father's height and fake son's height 
+```
+
+As we are using the same number of samples, same mean and same standard deviation to calculate fake father and fake son. It is highly likely that the random samples would be same which is resulting in close to 0 mean. 
+
+### 2.5
+
+```{r}
+sd(means)  # SD of the differece of the fake father's height and fake son's height 
+```
+
+The Standard Deviation of the differences is ~0.30
+
+### 2.6
+
+```{r}
+range(means)  # Range of the differece of the fake father's height and fake son's height 
+```
+
+If we see the maximum value, it is close to 1 which is ~60% less than what we were getting earlier for the actual data(2.5cms). 
+
+### 2.7
+
+```{r}
+quantile(means, c(0.025, 0.975))  # 95% CI of the differece of the fake father's height and fake son's height 
+```
+
+No, the actual difference falls outside the the CI. 
+
+### 2.8
+
+As, actual average difference in the heights of father and son in our actual data is falling outside 95% CI, we can reject our the Null hypothesis which was father’s and son’s average heights are the same,
+
+This means that the possibility of avarage of mean difference between both the heights to be ~2.5cms is less than 5%, which is different than our actual data.  
+
+Yes, we can confidently say, sons are taller than fathers. 
+
+## 3. t-test
+
+### 3.1
+
+```{r}
+
+nf <- father_son %>% select(fheight) %>% summarize(nf=n())
+nf <- nf[1,]  # length os the fathers height column 
+ns <- father_son %>% select(sheight) %>% summarize(nf=n())
+ns <- ns[1,] # length os the sons height column
+
+std_err <- sqrt(var(father_son$fheight)/nf+var(father_son$sheight)/ns)  #calculating standard error using formula
+std_err
+
+```
+
+### 3.2
+
+```{r}
+
+T<- (avg_diff-0)/std_err  #Calculating t-value using the formula
+T
+
+```
+
+### 3.3
+
+degree of freedom=n-1=1078-1=1077
+
+T-distribution table has DF values till 1000 only, and if we use that at our significance level of 5%, our t-critical value would be 1.960. 
+
+T probability of such a value is very low as the number suggests that 95% of our values lie towards the left of the graph’s right tail i.e. before 1.960. 
+
+
+### 3.4
+
+Our t-value is ~8.32 and t-critical value is ~1.96. We reject the null hypothesis when the t-value is greater than the t-critical value and similar is our case, hence we should reject the Null hypothesis. 
+
+As we reject the Null hypothesis, that son and father have similar height and therefore the height of the son is taller than father. 
+
+## 4. Canned t-test software
+
+### 4.1
+
+```{r}
+tf <- t.test(father_son$sheight,father_son$fheight)  #using in built t test function to check null hypothesis.
+tf
+```
+
+We get the t value: 8.3238703 with t test function. This value is almost the same to the T value we calculated above in 3.2
+
+### 4.2
+
+Yes, all the three methdos used above suggests that Son's height is taller than fathers. 
+
+
+
+
