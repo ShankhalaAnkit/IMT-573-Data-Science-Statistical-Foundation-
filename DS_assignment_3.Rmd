@@ -1,0 +1,223 @@
+---
+title: "DS_Assignment_03"
+author: "Ankit"
+date: "29/10/2021"
+output: html_document
+---
+
+### Collaborators: Alwin Eldhose, Srishti Dubey, Brinda Sarkar and Sakshi Abhyankar
+
+# Scrape the web
+
+## 1.1 Ethical issues
+
+### 1.1.1
+
+Wikipedia aims to empower people by generating and providing free and useful information. It allows scrapping to the user who are not using the data unethically. People can read and write article for free of charge and can contribute to the community as well. 
+
+### 1.1.2
+
+I checked Wikipedia's robots.txt page: https://en.wikipedia.org/robots.txt and found out that its scrapping friendly for users who are not using the scrapped data unethically. 
+
+### 1.1.3
+
+To reduce the burden on wikipedia page: 
+
+- While scrapping the pages, I'll parse it slowly so that Wikipedia page doesn't crash. 
+- I'll add delays while scrapping so that it doesn't add pressure on Wikipedia server. 
+- I won't hit on the page regularly and will use cached data. 
+
+
+## 1.2 Parse the list of mountains
+
+### 1.2.1 
+```{r}
+
+#Importing Libraries
+
+library(rvest)
+library(xml2)
+library(tidyverse)
+```
+
+
+### 1.2.1
+```{r}
+mountains <- read_html("https://en.wikipedia.org/wiki/List_of_mountains_by_elevation") #reading Wikipedia page of list of mountains using read_html function
+```
+### 1.2.2
+
+```{r}
+mountains_table <- mountains %>% html_elements("table") #getting all the tables from the page
+```
+### 1.2.3
+```{r}
+table_header <- mountains %>% html_elements("th") %>% html_text() %>% cat() #getting heads of all the tables in the page
+```
+
+```{r}
+# Just an example of how to extract links for individual mountains pages. 
+
+a <- mountains_table[[1]] %>% html_elements("tbody") %>% html_elements("tr") 
+for(y in 2:length(a)){
+  print(a[y]%>% html_element("a") %>% html_attr("href"))
+} 
+
+```
+
+### 1.2.4
+
+The dataframe everything is created with the columns as Mountain names, heights, and Wikipedia links. The dataframe contains 164 rows.
+
+```{r}
+Mountain_df <- NULL
+a_href_df <- NULL
+
+for(i in 1:length(mountains_table)){    #For loop, to create a dataframe of each table present in the wikipedia page
+  
+  x1 <- mountains_table[i]%>%html_table() %>% as.data.frame() %>% select("Mountain","Metres") 
+  Mountain_df <- rbind(Mountain_df,x1)
+  x1$Metres <- gsub(",","",x1$Metres) %>% as.numeric()
+  
+  tr_mountain <- mountains_table[i] %>% html_elements("tbody") %>% html_elements("tr")
+  
+  for(y in 2:length(tr_mountain)){  # for loop to get all the from the webpage 
+    a_href <- tr_mountain[y]%>% html_element("a") %>% html_attr("href")
+    a_href_df <- rbind(a_href_df,a_href)
+    }
+}
+
+b<-as.data.frame(a_href_df)
+everything <- cbind(Mountain_df,b)
+everything$Metres <- gsub(",","",everything$Metres) %>% as.numeric()
+everything <- everything[everything[,2]>=6800,]  #getting top mountains with height > 6800
+rownames(everything) <- 1:nrow(everything)
+everything <- everything %>% 
+  rename(
+    Links = V1
+    )
+everything <- everything %>% mutate(Links = paste0("https://en.wikipedia.org/",everything$Links))
+```
+
+### 1.2.5
+
+```{r}
+everything %>% head(10) #Sample of the dataset we have created
+```
+## 1.3 Scrape the individual mountain data
+
+### 1.3.1
+
+```{r}
+
+to_degree<-function(dimension) #Created a function to convert longitude and latitude to the degree
+  {
+     D <- if(grepl("[WS]", dimension)) -1 else 1
+     dms <- try(strsplit(dimension, split ="°"),silent=TRUE)
+     if(inherits(page, "try-error")){
+         return("No Second")
+     }
+     dd <- as.numeric(dms[[1]][1])
+     mm <- as.numeric(substring(dimension, 4,5))
+     ss <- try(as.numeric(substring(dimension, 7,8)),silent=TRUE)
+       if(inherits(page, "try-error")){
+         return("No Second")
+     }
+     latitude1 <- (dd + mm/60 + ss/3600)*D
+     return(latitude1)
+}
+```
+
+### 1.3.2
+
+```{r}
+get_lat<-function(url)  #Created a function to get latitude from the link
+  {
+    if(is.na(url)){
+      return("No Link")
+    }
+    else{
+      link_try <- try(read_html(url),silent=TRUE)
+      if(inherits(page, "try-error")){
+        return("No Link")
+      }
+      
+      mount_latitude <- try(link_try %>% html_element('span.latitude') %>% html_text(),silent=TRUE)
+      if(inherits(page, "try-error")){
+        return("No Link")
+      }
+      latitude <- to_degree(mount_latitude)
+      return(latitude)
+    }
+}
+```
+
+
+
+```{r}
+get_long<-function(url)   #Created a function to get longitude from the link
+  {
+   if(is.na(url)){
+      return("No Link")
+    }
+    else{
+      link_try <- try(read_html(url),silent=TRUE)
+      if(inherits(page, "try-error")){
+        return("No Link")
+      }
+      
+      mount_longitude <- try(link_try %>% html_element('span.longitude') %>% html_text(),silent=TRUE)
+      if(inherits(page, "try-error")){
+        return("No Link")
+      }
+      longitude <- to_degree(mount_longitude)
+      return(longitude)
+    }
+  }
+```
+
+### 1.3.3
+
+```{r,message=FALSE, warning=FALSE}
+for(i in 1:length(everything$Links)){   # looping through the links of the individual mountains to get longitude and latitude of each mountain
+  everything$Longitute[i] <- get_long(everything$Links[i])
+  everything$Latitude[i] <- get_lat(everything$Links[i])
+}
+```
+
+### 1.3.4
+
+```{r}
+everything%>%head(10)  #Sample of the final dataset
+```
+
+## 1.4 Plot the mountains
+
+### 1.4.1
+
+For plotting the graph, we are using a separate library "maps". By using world map data we are creating a world data which have region wise latitude and longitude which helps us create a blank map with scale. 
+Then we separate geom plots to plot mountains in the graph. 
+
+```{r,message=FALSE, warning=FALSE}
+#install.packages("maps")
+library(maps)
+world <- map_data("world")
+ggplot()+geom_map(
+data=world, map=world,
+aes(long, lat, map_id=region),
+color="white", fill="lightgray", size=0.1
+)+
+geom_polygon(col="white", fill="gray") +
+geom_point(data=everything, aes(Longitute, Latitude, color=Metres),alpha=0.7)
+```
+
+### 1.4.2
+      
+I can see most of the highest mountains are in Asia and very close to Himalayan range which is actually true if we Google it and one of the tallest mountains is in Chile as well.
+    
+The tallest mountain(Mt.Everst) is located in Himalayan ranages in Asia in Nepal. 
+      
+All the mountains we have plotted make sense to me as the highest mountain range(across globe) is in Asian in Nepal and almost all the mountains we plotted is in that range.  
+
+### I have worked for 10 hours on the dataset. 
+
