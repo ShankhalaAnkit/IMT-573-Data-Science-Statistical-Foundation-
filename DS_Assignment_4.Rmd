@@ -1,0 +1,352 @@
+---
+title: "DS Assignment 04"
+author: "Ankit"
+date: "05/11/2021"
+output: html_document
+---
+
+# Collaborators: Alwin, Sakshi and Srishti 
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(VGAM)
+```
+
+# 1. Compare differently distributed data
+
+### 1.1 Human Bodies
+
+#### 1.1.1 You’ll work about human heights. What kind of measure is this? (nominal, ordered, difference, ratio)? How should it be measured (continuous, discrete, positive...)?
+
+Height is a ratio measure because its zero is well defined and when we double the height it actually means that the height is doubled. Also, it's a continuous measure. 
+
+#### 1.1.2 Load the “fatherson.csv” data. It contains two columns, father’s height and son’s height (in cm). Let’s focus on fathers here (variable fheight) and ignore the sons. Provide the basic descriptives: how many observations do we have? Do we have any missings? Any unreasonable values?
+
+Total observations are 1078. By using summary function we can find that there are no missing values and I dont find any unreasonable values. 
+
+```{r}
+fatherson <- read.delim('fatherson.csv.bz2')
+
+# Number of  observations
+length(fatherson$fheight)
+
+summary(fatherson$fheight) 
+```
+
+#### 1.1.3 Compute mean, median, standard deviation and range of the heights. Discuss the relationship between these numbers. Is mean larger than median? By how much (in relative terms)? How does standard deviation compare to mean?
+
+Mean and Median are almost same and it means that the data is symmetrically distributed. Standard Deviation is a measure of the average distance between the values of the data in the set and the mean. A low standard deviation indicates that the data points tend to be very close to the mean.   
+
+```{r}
+mean <- mean(fatherson$fheight)  #Mean
+median <- median(fatherson$fheight)  # Median
+range <- range(fatherson$fheight)  #Range
+sd <- sd(fatherson$fheight)  #Standard Deviation
+
+print(mean)
+print(median)
+print(range)
+print(sd)
+```
+
+#### 1.1.4 Plot a histogram of the data. Add to this histogram mean and median. What do you find? Which distribution does the result resemble?
+
+It resembles to a Normal Distribution. As I've discussed it above when mean and median are same the data is symmetrically distributed hence this proves. 
+
+```{r message=FALSE}
+ggplot(fatherson, aes(x=fheight)) + geom_histogram(color="black", fill="steelblue")+geom_vline(aes(xintercept=mean(fatherson$fheight)),
+            color="Red", linetype="dashed", size=2)+geom_vline(aes(xintercept=median(fatherson$fheight)),
+            color="Gold", linetype="dashed", size=2)
+```
+
+### 1.2 Human influence
+
+#### 1.2.1 What kind of measure is this? What kind of valid figures would you expect to see (continuous, discrete, positive, ...)
+
+Its a ratio measure as its zero is perfectly defined. Also, its an discrete variable. 
+
+
+#### 1.2.2 Read the “mag-in-citations.csv” data. Provide the basic descriptives: how many observations do we have? Do we have any missings? Do we have implausible or wrong values? What is the range of the citations?
+
+Using summary function, we can see there are no missing values in the the data. The max value is very high for the citations so it feels like an implausible value. 
+Range of the data would be maximum value of the range - minimum value of the data hence its 18682
+
+```{r}
+paper_citation <- read.csv("mag-in-citations.csv.bz2")
+summary(paper_citation)
+range(paper_citation$citations)
+```
+
+#### 1.2.3 Compute mean, median, mode (the most frequent value), standard deviation and range of the number of citations. Discuss the relationship between these numbers. Is mean larger than median? Than mode? By how much (in relative terms)? How does standard deviation compare to mean?
+
+Mean is larger than median and mode by 12 and 15 respectively. 
+Standard Deviation is very high, which indicates that the data points tend to be very far to the mean.
+
+```{r}
+mean1 <- mean(paper_citation$citations)  # mean
+median1 <- median(paper_citation$citations)  # median
+range1 <- range(paper_citation$citations)  # range
+sd1 <- sd(paper_citation$citations)  # standard deviation
+
+mode <- modeest::mlv(paper_citation$citations, method="mfv")  # mode
+
+print(mean1)
+print(median1)
+print(range1)
+print(sd1)
+print(mode)
+```
+
+#### 1.2.4 Plot a histogram of the data. Add to this histogram mean, median, and mode. You can use vertical lines of different color. How does the histogram look like? Which distribution does it resemble? Can you get it to be a nice and easy to grasp image?
+
+The graph resembles to a pareto graph. As we can see the range is very high for the graph it and highest number of citations are for 0, it was tend to be like a pareto graph. 
+
+```{r}
+ggplot(paper_citation, aes(x=citations)) + geom_histogram(color="blue", fill="lightblue")+geom_vline(aes(xintercept=mean(paper_citation$citations)),
+            color="black", linetype="dashed", size=1)+geom_vline(aes(xintercept=median(paper_citation$citations)),
+            color="Gold", linetype="dashed", size=1)+geom_vline(aes(xintercept=mode),
+            color="Red", linetype="dashed", size=1)
+```
+
+Using log-log scale for histogram
+
+```{r}
+#log(x)
+ggplot(paper_citation, aes(x=log(citations))) + geom_histogram(color="blue", fill="lightblue")+geom_vline(aes(xintercept=mean(paper_citation$citations)),
+            color="black", linetype="dashed", size=1)+geom_vline(aes(xintercept=median(paper_citation$citations)),
+            color="Gold", linetype="dashed", size=1)+geom_vline(aes(xintercept=mode),
+            color="Red", linetype="dashed", size=1)
+```
+
+#### 1.2.5 Finally, comment on your findings about human bodies and influence.
+
+To present my findings on human bodies and human influence I feel the data is not enough. As, we can see both the the data frames consists of only 2 columns which doesn't tell anything about human bodies and human influence. 
+
+But, if we see this question from the data understanding perspective, we understand that human bodies data has a normal distribution which we can see through the descriptive stats -> mean and median are almost same. 
+And, in human influence data, it is a Pareto graph because of is very high range and standard deviation, it shows tha the variation within the graph is huge. Also, as the count of papers with 0 citations is extremely huge compared to any other citations of paper which actually is the condition for pareto. 
+
+
+### Explore Central Limit Theorem
+
+#### 2.1 Calculate the expected value and variance of this random variable.
+
+```{r}
+x <- c(1,-1)  # Random variable with 1, -1
+px <- 0.5     # Probability of the randam variables 
+
+Ex <- sum(x*px) #Expected value of the random variable 
+Vx <- sum((x^2)*px) - (Ex^2) #variance of random variable 
+Ex
+Vx
+```
+
+#### 2.2 Choose your number of repetitions R. 1000 is a good number.
+
+```{r}
+R <- 1000 #Number of repetitions. 
+```
+
+
+#### 2.3 Create a vector of Rrandom numbers as explained above. Make a histogram of those. Comment the shape of the histogram.
+
+```{r}
+X <- sample(c(-1, 1), R, replace=TRUE) #Defining samples of above defined random variables with 1000 repeations. 
+hist(X,breaks=30, col = "steelblue")  #creating a histogram with same random variable and 1000 repetitions. 
+```
+
+#### 2.4 Compute and report mean and variance of the random numbers you created (just use mean and var functions). Compare these numbers with the theoretical values computed in question 1.
+
+```{r}
+var(X)  #Variance of the random variable 
+mean(X) #mean of the random variable.
+```
+
+#### 2.5 Now create Rpairs of random numbers. For each pair, compute its mean. You should have Rmeans. Make histogram of the means. How does this look like?
+
+```{r}
+
+hist_mean <- function(S, R)  #function to create histogram which takes repeating and pairs as an input
+{
+rpairs <- sample(c(-1, 1), R*S, replace = TRUE) %>%
+matrix(nrow = R)
+
+rpair_means <- rowMeans(rpairs)
+
+hist(rpair_means, breaks = 30, col = "steelblue")
+
+return(rpair_means)
+
+}
+
+rmeans <- hist_mean(2,1000) #histogram with R pairs and 2 repeats 
+
+```
+
+#### 2.6 Compute and report mean of the pair means, and variance of the means
+
+```{r}
+mean(rmeans)  #mean(expected value) for the pair means
+var(rmeans)   #variance for the pair means 
+ 
+exp_var_calculator <- function(S) #function to calculate theoratical expected value and expected variance
+{
+  exp_value_theor <- Ex
+  var_rv_theor <- Vx * (1/S)
+  print(exp_value_theor)
+  print(var_rv_theor)
+}
+
+exp_var_calculator(2)  #expected value with 2 repeats
+
+```
+
+#### 2.7 Now instead of pairs of random variables, repeat this with 5- tuples of random numbers (i.e. 5 random numbers per one observations instead of a pair). Do you spot any noticeable differences in the histogram?
+
+```{r}
+rmeans <- hist_mean(5,1000)  #histogram with R pairs and 5 repeats 
+exp_var_calculator(5)  #expected value with 5 repeats
+```
+
+#### 2.8 Repeat with 25-tuples
+
+```{r}
+rmeans <- hist_mean(25,1000)  #histogram with R pairs and 25 repeats
+exp_var_calculator(25)   #expected value with 25 repeats
+```
+
+#### 2.9 Repeat with 1000-tuples
+
+```{r}
+rmeans <- hist_mean(1000,1000)    #histogram with R pairs and 1000 repeats
+exp_var_calculator(1000)   #expected value with 1000 repeats
+```
+
+#### 2.10 Comment on the tuple size, and the shape of the histogram.
+
+As the tuple size(S) is increasing the graph is becoming more like a bell curve which is what CLT explains, as we increase the N(number of sample size) the distribution become more and more normal. 
+
+
+#### 2.11 Explain why do the distribution becomes to look more and more normal as we take mean of a large sample of individual values.
+In particular, explain what happens when we move from single values S=1 to pairs S=2. Why did two equal peaks turn into a “山”-shaped histogram?
+
+Because as the sample size gets large enough, the sampling distribution of the mean is approximately normally distributed which is hat CLT explains. Therefore the distribution was becoming mmore and more normal. 
+
+When we move from single value S=1 to S=2, our pairs were (1,1),(1,-1),(-1,-1) and (-1,1). As we were plotting the graph on row means of the pairs. And as we can see row means dor (1,-1) would be 0 and hence the graph was more like “山” this shape. 
+
+### I have spend 7 hours to solve the problem set
+
+
+### Extra credit: Pareto Distribution
+
+#### 3.1 Choose your number of repetitions R. 1000 is a good number.
+
+```{r}
+R <- 1000  #R repeations 
+```
+
+#### 3.2 Create a vector of Rpareto(10)random numbers, i.e. Pareto random numbers with the shape parameters α=10. Make a histogram of those. Comment the shape of the histogram.
+
+```{r}
+R <- 1000
+shape = 10
+R_pareto <- rpareto(R, shape=shape)  #R pareto vector with random numbers. 
+hist(R_pareto, breaks = 30, col = "steelblue") #histogram of the pareto vector
+
+```
+
+#### 3.3 Compute and report mean and variance of the sample you created. Compare these numbers with the theoretical values computed from (2) and (3).
+
+```{r}
+ex_p <- shape/(shape-1)  #theoretical expected value i.e. using formulas 
+var_p <- shape/(((shape-1)^2)*(shape-2))  #theoretical variance  i.e. using formulas
+
+ex_p
+var_p
+```
+
+#### 3.4 Now create Npairs of random Paretos. For each pair, compute its mean. You should have Nmeans. Make the histogram. How does this look like?
+
+```{r}
+S <- 2
+x <- rpareto(R*S, shape=shape) %>%   #S pairs of random Raretos
+  matrix(ncol=S)
+ms <- rowMeans(x)
+
+dim(x)
+
+hist_mean_parito <- function(S, R,shape)  #function to print pareto graph of S pairs of paretos. 
+{
+r_pareto <- rpareto(R*S, shape=shape) %>% 
+  matrix(ncol=S)
+ms <- rowMeans(r_pareto)
+
+hist(ms, breaks = 30, col = "steelblue", main=paste("Histogram with tuple size=",S))
+
+return(ms)
+
+}
+
+
+```
+```{r}
+means1 <- hist_mean_parito(2,R,10) #histogram of 2 pairs and R repeatitions and shape = 10
+```
+
+#### 3.5 Compute and report mean of the pair means, and variance of the means. Compare these numbers with the theoretical values computed from (2) and (3). However, as CLT tells, the variance now should be just 1/2 of what (3) suggests as size of the pairs S=2.
+
+```{r}
+mean(means1)  #mean values of pair of means
+var(means1)   #mean values of pair of variance
+
+exp_var_calculator1 <- function(S)  #function to calculate and compare theoratical values 
+{
+  exp_value_theor1 <- ex_p
+  var_rv_theor1 <- var_p * (1/S)
+  print(exp_value_theor1)
+  print(var_rv_theor1)
+}
+
+exp_var_calculator1(2)
+
+```
+
+#### 3.6 Now instead of pairs of random normals, repeat this with 5-tuples of random numbers (i.e. 5 random numbers per one observations). Do you spot any noticeable differences in the histogram?
+
+```{r}
+means1 <- hist_mean_parito(5,R,10) #histogram of 5 pairs and R repeatitions and shape = 10
+exp_var_calculator1(5)
+```
+
+#### 3.7 Repeat with 25-tuples...
+
+```{r}
+means1 <- hist_mean_parito(25,R,10)  #histogram of 25 pairs and R repeatitions and shape = 10
+exp_var_calculator1(25)
+```
+
+#### 3.8 ... and with 1000-tuples.
+
+```{r}
+means1 <- hist_mean_parito(1000,R,10)  #histogram of 1000 pairs and R repeatitions and shape = 10
+exp_var_calculator1(1000)
+```
+
+#### 3.9 Comment on the tuple size, and the shape of the histogram.
+
+As the tuple size(S) is increasing the graph is becoming more like a bell curve which is what CLT explains, as we increase the N(number of sample size) the distribution becomre more and more normal.
+
+#### 3.10 Now repeat the previous with α=1.5. For simplicity, let’s just do the case with 1, 25, and 1000 samples.
+
+```{r}
+means1 <- hist_mean_parito(1,R,1.5)  #histogram of 1 pairs and R repeatitions and shape = 1.5
+means2 <- hist_mean_parito(25,R,1.5)  #histogram of 25 pairs and R repeatitions and shape = 1.5
+means3 <- hist_mean_parito(1000,R,1.5)  #histogram of 1000 pairs and R repeatitions and shape = 1.5
+```
+
+#### 3.11 Comment the result. What happens when variance does not exist?
+
+When variance does not exist, increasing the number of tuple size does not create a significant difference in histogram's shape. The frequency is high when the pair of means within the tuple is low and tends to 0 as the mean increases. That means we will always get means less than value 5 and most observations will be around 3.
