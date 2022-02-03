@@ -1,0 +1,380 @@
+---
+title: "DS Assignment 2"
+author: "Ankit"
+date: "20/10/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)  #Import Library
+```
+
+# 1. Covid-19 Data
+
+## 1.1
+
+```{r}
+africa <- read.delim("covid/countries-africa.csv.bz2")  #Reading the Africa File
+#The function read.delim() is used for reading a datafile here. Thus, we see that the dataset 'countries-africa.csv.bz2' contains
+
+dim(africa)
+```
+
+```{r}
+africa %>% head()
+africaCountry <- africa %>% distinct(country) %>% count() #Unique african Countries
+```
+Total unique African countries in the data set is `r africaCountry`
+ 
+### 1.1.2 Collect all the names of covid data files covid-global into a character vector. How many files are there?
+
+```{r}
+files <- list.files(path = "E:/UW MSIM Course materials/DS 1 Material/DS Assignment 2/covid",pattern = "\\bcovid")       #getting list of all the covid files 
+print(files)
+
+countFiles <- length(files)
+```
+Total number of files with name starting from "covid-global" is `r countFiles`
+
+### 1.1.3 Load the COVID data file for October 2021. Ensure you know the variables there.
+
+```{r}
+oct_file <- read.delim("E:/UW MSIM Course materials/DS 1 Material/DS Assignment 2/covid/covid-global_10-01-2020.csv.bz2")
+
+oct_file %>% dim()
+
+names(oct_file)  #Names of the columns
+```
+
+### 1.1.4 How many African countries in the African Country list do you find in the covid data? Do
+not attempt to adjust the names for now.
+
+```{r}
+africa_countries <- length(which(africa$country %in% oct_file$Country_Region)) #Arican Countries in the global data
+africa_countries
+```
+Total number of African countries in global data is `r africa_countries`
+
+### 1.1.5 Which African countries are not matched in the COVID data? Again, do not adjust the names
+
+```{r}
+africa %>% filter(!(africa$country %in% oct_file$Country_Region)) #Countries which were not in the Global data
+```
+### 1.1.6 Why should we care more about these three countries and less about other entities?
+
+80% of the population is covered in the top three countries and as per the Parito principal, we can get all the information with the top 80% of the data. 
+
+Another way of looking at this answer is We should care more about Congo (DR and R) and Ivory coast as they belong to the African continent or on the African coast. Also,Congo (DR and R) are conflicted regions and are under continuous military conflicts. We should care less about other entities as they do not belong to the African region and analyzing their data may affect our results.
+
+### 1.1.7 Next, find how are the names of these three countries (Two Congos and Ivory Coast) written in the covid data.
+
+The names of the countries mentioned in the US Dept of State list of countries are, 
+
+- Democratic Republic of the Congo as Congo (Brazzaville)
+- Republic of the Congo as Congo (Kinshasa)
+- Ivory Coast as Cote d'Ivoire
+
+### 1.1.8 Amend the list of African countries in a way that you can extract all the necessary African countries (you may leave out the islands/territories) from COVID data. Demonstrate that it works.
+
+```{r}
+
+#Created three separate vectors with the new names of the countries
+#Append in the existing file using rbind function. 
+
+v1 <- c(3,"Congo (Brazzaville)",102561403, "July 1, 2020", "National annual projection")
+v2 <- c(39,"Congo (Kinshasa)",3697490, "April 28, 2007", "2007 census result")
+v3 <- c(16,"Cote d'Ivoire",22671331, "May 15, 2014", "Preliminary 2014 census result")
+
+africa_new <- rbind(africa,v1)
+africa_new <- rbind(africa_new,v2)
+africa_new <- rbind(africa_new,v3)
+
+tail(africa_new)
+```
+```{r}
+#Checking whether the countries are in the overall global dataset or not. 
+
+oct_file %>% filter(Country_Region %in% africa_new$country[59:62]) 
+```
+
+## 1.2 Load and merge all datasets
+
+### 1.2.1 Extract Date parts from the file names
+
+```{r}
+  as.Date(gsub(".*[_]|[.].*", "\\1", files[1]),format = "%m-%d-%Y") #Extracting the date part from the file names. 
+```
+### 1.2.2 Merging all the file to create one final dataframe
+
+```{r}
+Final <- NULL
+for(i in files){  #for loop starts
+  url <- sprintf("E:/UW MSIM Course materials/DS 1 Material/DS Assignment 2/covid/%s",i)
+  mega_file <- read.delim(url)
+  
+  Date <- as.Date(gsub(".*[_]|[.].*", "\\1", i),format = "%m-%d-%Y")
+  
+  
+  colnames(mega_file)[which(names(mega_file) == "Country.Region")] <- "Country_Region" #Changing the country.region as to make the schema nenutral. 
+  if("Country_Region" %in% colnames(mega_file)){    #If loop starts
+    local <- mega_file %>% 
+      mutate(Year=lubridate::year(Date),Month=lubridate::month(Date)) %>%
+      filter(mega_file$Country_Region %in% africa_new$country) %>% 
+      select(Country_Region,Deaths,Year,Month)
+    
+  }
+  Final <- rbind(Final,local)  #appending to the null df created above
+
+}  #for loop ends
+dim(Final)
+```
+# 1.3 Time Series
+
+### 1.3.1
+
+```{r}
+africa_new_1 <- africa_new %>% select(country,population) #Selecting two columns from the dataset
+Final <- merge(Final, africa_new_1, by.x="Country_Region", by.y="country",all.x=TRUE) #Merging final dataset with African dataset to get population and Death rate. 
+head(Final)
+```
+
+### 1.3.2 Compute the death rate: number of deaths per 1M population
+
+- First we converted population to int as it was in char.
+- For the conversion, first we replaced "," and then applied as_numeric function. 
+- Then created column "death_rate" by calculation deaths/population for 1M population. 
+- Furthermore, we applied filter on October and then applied grouby to get number of deaths per 1M population. 
+
+```{r}
+Final$population <-  gsub(",","",Final$population)
+Final$population <- as.numeric(Final$population,na.rm=TRUE)
+Final <- Final %>% mutate(death_rate = round(Deaths*1000000/population,2))
+Final_1 <- Final %>% filter(Year == 2021 & Month == 10) %>% group_by(Country_Region) %>% summarize(Death_rate = round(death_rate/n(),2))
+
+Final_1 %>% head()
+```
+
+### 1.3.3  10 countries with the largest death rate
+
+- Arranged the data by descending order by death rate to get 10 countries with the largetst death rate. 
+
+```{r}
+Final_1_top <- Final_1 %>% arrange(desc(Death_rate)) %>% head(10)
+Final_1_top
+```
+### 1.3.4 Death rate for top 10 countries. 
+
+- First get the proper data for the top 10 countries by filtering it. 
+- Then plotted a graph while creating a date variable to make the graph consistent. 
+- Used line graph to show death rate of all the regions. 
+- Used scale_x_date to reduced the scale of the x axis to 3 months for better representation of graph. 
+- Applied Xlab and Ylab to properly label the graph
+
+```{r}
+Final1 <- Final %>% filter(Country_Region %in% Final_1_top$Country_Region)
+ggplot(Final1, aes(x=as.Date(paste0(Year,"-",Month,"-","01"),"%Y-%m-%d"),y=death_rate,col=Country_Region)) + geom_line() +scale_x_date(date_breaks = "3 month") +xlab('Time') + ylab("Death_rate")
+
+```
+
+#### 1.3.5 Month wise death growth rate grown from 10 countries
+
+- Created a new column "YearMonth" for easy use of lag function.
+- Created another new new column "Monthly_death" where I used lag function to create monthly death which was ordered by "YearMonth". 
+- Created 3rd new column which was calculated by monthly_death divided by population to get monthly death rate. 
+- Plotted another graph with X axis and Monthly death rate on Y axis. 
+- Used scale_x_date to reduced the scale of the x axis to 3 months for better representation of graph. 
+- Applied Xlab and Ylab to properly label the graph
+
+```{r}
+Final2 <- Final1 %>% 
+  mutate(Yearmonth = as.Date(paste0(Year,"-",Month,"-","01"),"%Y-%m-%d")) %>% 
+  group_by(Country_Region) %>% 
+  mutate(monthly_death = Deaths - lag(Deaths,default = 0,order_by=Yearmonth)) %>%  arrange(Country_Region,Year, Month) %>% mutate(Monthly_Death_rate = round(monthly_death*1000000/population,2))
+
+
+Final2 
+
+ggplot(Final2, aes(x=Yearmonth,y=Monthly_Death_rate,col=Country_Region)) + geom_line() +scale_x_date(date_breaks = "3 month") +xlab('Time') + ylab("Monthly_Death_rate")
+```
+
+
+### 1.3.6
+
+```{r}
+Final2 %>% arrange(desc(Monthly_Death_rate))
+```
+Namibia has experienced the highest peak in the new monthly deaths. It happened in August 2021. We can see 2 covid waves in the plot. 
+
+- First one around early 2021 between Feb and March. 
+- Second one between July 2021 and August 2021. 
+
+# 1.4
+
+### 1.4.1 Where would the US be on the top-10 list of African countries?
+
+USA would be on the Second position of the top 10 list of African countries(Google) with the death rate of 2,223.04 per million. Tunisia on the other hand has a death rate of 2267.28 per million which is on the first place and Namibia with a death rate of 1540.76 per million 
+
+### 1.4.2 What do you think about reliability of these data?
+
+Although the Google data suggests that South Africa has a greater death rate than Tunisia, Tunisia has been claimed to have a higher death rate in the analysis. Egypt is ranked third, although it does not appear in our top ten countries. As a result, I believe the data is unreliable.
+
+### 1.4.3 Recommendations regarding to how collect/store data
+
+- The data contains some inconsistencies, as African countries such as Congo (DR and R) and Ivory Coast were not included..
+- Some of the information gathered, such as "FIPS," "Admin2," and "Combined Key," was unnecessary.
+- The Country region was referred to as "Country Region" in some data sets and "Country.Region" in others..
+- The collection has no NULL or NA characters, which is an excellent point to emphasize.
+
+### How much time (hours) did you spend on this problem set?
+
+It took me 18 hrs to complete this assignment.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
